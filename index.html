@@ -1,47 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐾 宠物之家 · 弹幕版</title>
+    <style>
+        /* ===== 全局重置 & 暗色变量 ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f5f0eb;
+            color: #333;
+            padding: 20px;
+            transition: background 0.3s, color 0.3s;
+            min-height: 100vh;
+            overflow-x: hidden; /* 防止弹幕溢出产生横向滚动条 */
+        }
+        body.dark-mode {
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* ===== 顶部导航 ===== */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 24px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        body.dark-mode .header {
+            background: #16213e;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .logo { font-size: 24px; font-weight: bold; color: #d48c6b; }
+        .logo span { color: #333; }
+        body.dark-mode .logo span { color: #e0e0e0; }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .btn {
+            padding: 6px 18px;
+            border: none;
+            border-radius: 30px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #eee;
+            color: #333;
+        }
+        body.dark-mode .btn { background: #0f3460; color: #e0e0e0; }
+        .btn-primary { background: #d48c6b; color: white; }
+        .btn-primary:hover { background: #c07a59; }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #d48c6b;
+            color: #d48c6b;
+        }
+        .btn-outline:hover { background: #d48c6b; color: white; }
+        body.dark-mode .btn-outline { border-color: #d48c6b; color: #d48c6b; }
+        body.dark-mode .btn-outline:hover { background: #d48c6b; color: #16213e; }
+
+        /* ===== 核心：表格风格网格 ===== */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        .dashboard .full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* ===== 卡片通用样式 ===== */
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+        body.dark-mode .card {
+            background: #16213e;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+        }
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 4px;
+            color: #333;
+        }
+        body.dark-mode .card h2 { color: #f0f0f0; }
+        .card .sub {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 14px;
+        }
+        body.dark-mode .card .sub { color: #aaa; }
+
+        /* ===== 宠物展示（横排缩略） ===== */
+        .pet-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        .pet-card {
+            text-align: center;
+            background: #f9f6f2;
+            border-radius: 12px;
+            padding: 12px 8px;
+            transition: 0.2s;
+        }
+        body.dark-mode .pet-card { background: #0f3460; }
+        .pet-card img {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            object-fit: cover;
+            border-radius: 10px;
+            background: #e0d6ce;
+        }
+        .pet-card h3 { font-size: 15px; margin: 6px 0 2px; color: #333; }
+        body.dark-mode .pet-card h3 { color: #f0f0f0; }
+        .pet-card p { font-size: 13px; color: #999; }
+        body.dark-mode .pet-card p { color: #aaa; }
+
+        /* ===== 弹幕容器（固定定位，覆盖全屏） ===== */
+        #danmakuContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;  /* 让鼠标可以穿透弹幕点击页面 */
+            overflow: hidden;
+            z-index: 9999;
+        }
+        /* 单条弹幕样式 */
+        .danmaku-item {
+            position: absolute;
+            white-space: nowrap;
+            font-size: 24px;
+            font-weight: bold;
+            color: #d48c6b;
+            text-shadow: 0 0 10px rgba(0,0,0,0.3), 0 0 20px rgba(255,255,255,0.8);
+            opacity: 0.9;
+            animation: flyLeft linear forwards;
+            pointer-events: none;
+            will-change: transform;
+        }
+        body.dark-mode .danmaku-item {
+            color: #ffb08c;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8), 0 0 20px rgba(255,255,255,0.3);
+        }
+        /* 从左向右飞入的动画 */
+        @keyframes flyLeft {
+            0% { transform: translateX(100vw); opacity: 0; }
+            5% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateX(-200px); opacity: 0; }
+        }
+
+        /* ===== 留言板（横排输入框+列表） ===== */
+        .msg-area {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .msg-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .msg-row input {
+            flex: 1;
+            min-width: 150px;
+            padding: 8px 16px;
+            border: 2px solid #e0d6ce;
+            border-radius: 30px;
+            font-size: 14px;
+            outline: none;
+            transition: 0.2s;
+            background: white;
+            color: #333;
+        }
+        body.dark-mode .msg-row input {
+            background: #0f3460;
+            border-color: #1a4a7a;
+            color: #e0e0e0;
+        }
+        body.dark-mode .msg-row input::placeholder { color: #888; }
+        .msg-row input:focus { border-color: #d48c6b; }
+        .msg-list {
+            max-height: 180px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .msg-item {
+            background: #f9f6f2;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        body.dark-mode .msg-item { background: #0f3460; }
+        .msg-item .time { color: #bbb; font-size: 12px; margin-left: 12px; }
+        .msg-item .delete-btn {
+            background: none;
+            border: none;
+            color: #e74c3c;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 8px;
+        }
+        .msg-item .delete-btn:hover { color: #c0392b; }
+
+        /* ===== 访客计数器 ===== */
+        .counter-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .counter-number {
+            font-size: 48px;
+            font-weight: bold;
+            color: #d48c6b;
+            line-height: 1;
+        }
+        body.dark-mode .counter-number { color: #d48c6b; }
+        .counter-label {
+            font-size: 18px;
+            color: #888;
+        }
+        body.dark-mode .counter-label { color: #aaa; }
+
+        /* ===== 页脚 ===== */
+        .footer {
+            text-align: center;
+            color: #bbb;
+            font-size: 13px;
+            padding: 16px 0 8px;
+            border-top: 1px solid #eee;
+            margin-top: 8px;
+        }
+        body.dark-mode .footer { border-top-color: #2a2a4a; color: #666; }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 800px) {
+            .dashboard { grid-template-columns: 1fr; }
+            .pet-grid { grid-template-columns: repeat(2, 1fr); }
+            .header { flex-direction: column; align-items: stretch; text-align: center; }
+            .header-actions { justify-content: center; }
+            .counter-number { font-size: 36px; }
+            .danmaku-item { font-size: 18px; } /* 小屏弹幕小一点 */
+        }
+        @media (max-width: 480px) {
+            .pet-grid { grid-template-columns: 1fr 1fr; }
+            .danmaku-item { font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== 弹幕容器（固定层） ===== -->
+<div id="danmakuContainer"></div>
+
 <div class="container">
 
     <!-- ===== 顶部导航 ===== -->
     <div class="header">
-        <div class="logo">🐾 宠物<span>之家</span></div>
+        <div class="logo">🐾 宠物<span>之家</span> · 弹幕版</div>
         <div class="header-actions">
             <button class="btn btn-outline" id="themeToggleBtn">🌙 暗色</button>
         </div>
     </div>
 
-    <!-- ===== 宠物展示 ===== -->
-    <div class="card">
-        <h2>🐶 今日萌宠</h2>
-        <p>看看这些可爱的小家伙们</p>
-        <div class="pet-grid">
-            <div class="pet-card"><img src="https://picsum.photos/seed/cat1/400/400" alt="猫"><h3>🐱 小猫咪</h3><p>温顺可爱</p></div>
-            <div class="pet-card"><img src="https://picsum.photos/seed/dog1/400/400" alt="狗"><h3>🐶 小狗狗</h3><p>忠诚活泼</p></div>
-            <div class="pet-card"><img src="https://picsum.photos/seed/rabbit1/400/400" alt="兔"><h3>🐰 小兔子</h3><p>软萌乖巧</p></div>
-            <div class="pet-card"><img src="https://picsum.photos/seed/hamster1/400/400" alt="仓鼠"><h3>🐹 小仓鼠</h3><p>圆滚滚</p></div>
+    <!-- ===== 仪表盘 ===== -->
+    <div class="dashboard">
+
+        <!-- 左列：宠物展示 -->
+        <div class="card">
+            <h2>🐶 今日萌宠</h2>
+            <div class="sub">点击图片可放大（示意）</div>
+            <div class="pet-grid">
+                <div class="pet-card"><img src="https://picsum.photos/seed/cat1/200/200" alt="猫"><h3>🐱 猫咪</h3><p>温顺</p></div>
+                <div class="pet-card"><img src="https://picsum.photos/seed/dog1/200/200" alt="狗"><h3>🐶 狗狗</h3><p>活泼</p></div>
+                <div class="pet-card"><img src="https://picsum.photos/seed/rabbit1/200/200" alt="兔"><h3>🐰 兔子</h3><p>软萌</p></div>
+                <div class="pet-card"><img src="https://picsum.photos/seed/hamster1/200/200" alt="仓鼠"><h3>🐹 仓鼠</h3><p>圆润</p></div>
+            </div>
         </div>
+
+        <!-- 右列：访客计数器 -->
+        <div class="card">
+            <h2>📊 访客统计</h2>
+            <div class="sub">记录你的每一次访问</div>
+            <div class="counter-box">
+                <span class="counter-number" id="visitorCounter">0</span>
+                <span class="counter-label">位访客</span>
+            </div>
+            <div style="margin-top:12px; font-size:14px; color:#999; text-align:center;">
+                💡 数据保存在你的浏览器中
+            </div>
+        </div>
+
+        <!-- 第三行：留言板（带弹幕功能） -->
+        <div class="card full-width">
+            <h2>💬 留言板 · 弹幕模式</h2>
+            <div class="sub">留言会像弹幕一样飘过，并且刷新不会消失 ✨</div>
+            <div class="msg-area">
+                <div class="msg-row">
+                    <input type="text" id="messageInput" placeholder="输入你的留言..." />
+                    <button class="btn btn-primary" id="submitMsgBtn">发布</button>
+                </div>
+                <div class="msg-list" id="msgList">
+                    <!-- 留言会动态显示在这里 -->
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <!-- ===== 留言板 ===== -->
-    <div class="card">
-        <h2>💬 留言板</h2>
-        <p>说点什么吧（刷新页面留言会消失哦～）</p>
-        <div class="row">
-            <input type="text" id="messageInput" placeholder="输入你的留言..." />
-            <button class="btn btn-primary" id="submitMsgBtn">发布留言</button>
-        </div>
-        <div id="msgList" style="margin-top:16px;">
-            <!-- 留言会动态显示在这里 -->
-        </div>
-    </div>
-
-    <!-- ===== 页脚（带计数器） ===== -->
-    <div class="footer">
-        <p>🐾 宠物之家 · 已有 <span id="visitorCounter">0</span> 位访客</p>
-    </div>
+    <div class="footer">🐾 宠物之家 · 弹幕风格 · 你的云端宠物乐园</div>
 </div>
 
 <script>
 // ============================================================
-// 1. 访客计数器（使用 localStorage）
+// 1. 访客计数器（localStorage）
 // ============================================================
 function updateCounter() {
     let count = localStorage.getItem('petHomeVisits');
@@ -53,73 +350,160 @@ function updateCounter() {
     localStorage.setItem('petHomeVisits', count);
     document.getElementById('visitorCounter').textContent = count;
 }
-// 页面加载时更新计数器
 updateCounter();
 
 // ============================================================
-// 2. 留言板（纯前端，存在内存里，刷新即失）
+// 2. 弹幕留言板（localStorage 持久化 + 弹幕效果）
 // ============================================================
+const STORAGE_KEY = 'petHomeMessages';
 const messageInput = document.getElementById('messageInput');
 const submitMsgBtn = document.getElementById('submitMsgBtn');
 const msgList = document.getElementById('msgList');
+const danmakuContainer = document.getElementById('danmakuContainer');
 
-// 存储留言的数组（页面刷新就没了）
-let messages = [];
+// ----- 读取存储的留言 -----
+function loadMessages() {
+    try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        return data ? JSON.parse(data) : [];
+    } catch {
+        return [];
+    }
+}
 
-function renderMessages() {
+// ----- 保存留言到 localStorage -----
+function saveMessages(messages) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+}
+
+// ----- 渲染留言列表（在卡片内）-----
+function renderMessageList(messages) {
     if (messages.length === 0) {
-        msgList.innerHTML = '<p style="color:#aaa; font-size:14px;">还没有留言，来做第一个吧 ✨</p>';
+        msgList.innerHTML = '<div style="color:#aaa; font-size:14px; padding:6px 0;">还没有留言，来做第一个 ✨</div>';
         return;
     }
     let html = '';
     // 从新到旧显示
     for (let i = messages.length - 1; i >= 0; i--) {
-        const msg = messages[i];
-        html += `<div style="background:#f9f6f2; padding:10px 16px; border-radius:30px; margin-bottom:8px; font-size:14px;">
-            <strong>${msg.name || '匿名'}</strong>：${msg.text}
-            <span style="color:#bbb; font-size:12px; margin-left:12px;">${msg.time}</span>
+        const m = messages[i];
+        html += `<div class="msg-item">
+            <span><strong>访客</strong>：${m.text}</span>
+            <span>
+                <span class="time">${m.time}</span>
+                <button class="delete-btn" data-index="${i}">✕</button>
+            </span>
         </div>`;
     }
     msgList.innerHTML = html;
+
+    // 绑定删除事件
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            const index = parseInt(this.dataset.index);
+            deleteMessage(index);
+        });
+    });
 }
 
-function addMessage() {
-    const text = messageInput.value.trim();
-    if (!text) {
-        alert('请输入留言内容！');
-        return;
-    }
+// ----- 添加一条新留言 -----
+function addMessage(text) {
+    if (!text.trim()) { alert('请输入留言内容！'); return; }
     const now = new Date();
     const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-    messages.push({
-        name: '访客',
-        text: text,
-        time: timeStr
-    });
+    const newMsg = { text: text.trim(), time: timeStr };
+    
+    const messages = loadMessages();
+    messages.push(newMsg);
+    saveMessages(messages);
+    renderMessageList(messages);
     messageInput.value = '';
-    renderMessages();
+    
+    // 触发弹幕效果
+    launchDanmaku(text.trim());
 }
 
-submitMsgBtn.addEventListener('click', addMessage);
+// ----- 删除留言 -----
+function deleteMessage(index) {
+    const messages = loadMessages();
+    if (index >= 0 && index < messages.length) {
+        messages.splice(index, 1);
+        saveMessages(messages);
+        renderMessageList(messages);
+    }
+}
+
+// ----- 发射弹幕（从右向左飞入）-----
+function launchDanmaku(text) {
+    const el = document.createElement('div');
+    el.className = 'danmaku-item';
+    el.textContent = text;
+    
+    // 随机垂直位置 (10% ~ 80%)
+    const top = 10 + Math.random() * 70;
+    el.style.top = top + '%';
+    
+    // 随机字体大小 (20px ~ 36px)
+    const fontSize = 20 + Math.random() * 16;
+    el.style.fontSize = fontSize + 'px';
+    
+    // 随机颜色（在暖色系里随机）
+    const hue = 20 + Math.random() * 30; // 橙红范围
+    const sat = 60 + Math.random() * 30;
+    const lig = 50 + Math.random() * 30;
+    el.style.color = `hsl(${hue}, ${sat}%, ${lig}%)`;
+    
+    // 随机动画时长 (6s ~ 12s)
+    const duration = 6 + Math.random() * 6;
+    el.style.animationDuration = duration + 's';
+    
+    // 随机延迟 (0 ~ 2s)
+    const delay = Math.random() * 2;
+    el.style.animationDelay = delay + 's';
+    
+    danmakuContainer.appendChild(el);
+    
+    // 动画结束后移除DOM元素
+    setTimeout(() => {
+        if (el.parentNode) el.remove();
+    }, (duration + delay) * 1000 + 500);
+}
+
+// ----- 初始化留言板 -----
+function initMessageBoard() {
+    const messages = loadMessages();
+    renderMessageList(messages);
+    
+    // 如果有历史留言，在页面加载后陆续发射弹幕（营造热闹氛围）
+    if (messages.length > 0) {
+        setTimeout(() => {
+            // 只发射最近5条，避免太多
+            const recent = messages.slice(-5);
+            recent.forEach((msg, idx) => {
+                setTimeout(() => {
+                    launchDanmaku(msg.text);
+                }, idx * 1500);
+            });
+        }, 1000);
+    }
+}
+
+// ----- 事件绑定 -----
+submitMsgBtn.addEventListener('click', () => addMessage(messageInput.value));
 messageInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') addMessage();
+    if (e.key === 'Enter') addMessage(messageInput.value);
 });
 
-// 初始化留言板
-renderMessages();
+// 初始化
+initMessageBoard();
 
 // ============================================================
-// 3. 暗色模式（切换 body 的 class）
+// 3. 暗色模式
 // ============================================================
 const themeToggleBtn = document.getElementById('themeToggleBtn');
-
-// 检查是否有保存的主题偏好
-const currentTheme = localStorage.getItem('petHomeTheme');
-if (currentTheme === 'dark') {
+if (localStorage.getItem('petHomeTheme') === 'dark') {
     document.body.classList.add('dark-mode');
     themeToggleBtn.textContent = '☀️ 亮色';
 }
-
 themeToggleBtn.addEventListener('click', () => {
     document.body.classList.toggle('dark-mode');
     const isDark = document.body.classList.contains('dark-mode');
@@ -128,44 +512,5 @@ themeToggleBtn.addEventListener('click', () => {
 });
 </script>
 
-<!-- 暗色模式的额外样式（放在 <style> 里或这里都行） -->
-<style>
-/* 暗色模式变量 */
-body.dark-mode {
-    background: #1a1a2e;
-    color: #e0e0e0;
-}
-body.dark-mode .header,
-body.dark-mode .card,
-body.dark-mode .pet-card {
-    background: #16213e;
-    color: #e0e0e0;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-}
-body.dark-mode .header .logo span { color: #e0e0e0; }
-body.dark-mode .card h2 { color: #f0f0f0; }
-body.dark-mode .card p { color: #aaa; }
-body.dark-mode .row input {
-    background: #0f3460;
-    border-color: #1a4a7a;
-    color: #e0e0e0;
-}
-body.dark-mode .row input::placeholder { color: #888; }
-body.dark-mode .btn-outline {
-    border-color: #d48c6b;
-    color: #d48c6b;
-}
-body.dark-mode .btn-outline:hover {
-    background: #d48c6b;
-    color: #16213e;
-}
-body.dark-mode .footer { color: #666; }
-body.dark-mode #msgList > div {
-    background: #0f3460;
-    color: #e0e0e0;
-}
-body.dark-mode .pet-card h3 { color: #f0f0f0; }
-body.dark-mode .pet-card p { color: #aaa; }
-/* 暗色模式下留言板的“暂无留言”文字 */
-body.dark-mode #msgList p { color: #666; }
-</style>
+</body>
+</html>
