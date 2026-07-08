@@ -1,30 +1,171 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>宠物之家</title>
-    <style>
-        body { font-family: Arial; text-align: center; padding: 50px; background: #f5f0eb; }
-        h1 { color: #d48c6b; font-size: 48px; }
-        .pet { display: inline-block; margin: 20px; padding: 20px; background: white; border-radius: 20px; }
-        img { width: 200px; height: 200px; object-fit: cover; border-radius: 10px; }
-    </style>
-</head>
-<body>
-    <h1>🐾 欢迎来到宠物之家</h1>
-    <p>这里展示可爱的宠物们</p>
-    <div class="pet">
-        <img src="https://picsum.photos/200/200?random=1" alt="宠物1">
-        <h3>小猫咪</h3>
+<div class="container">
+
+    <!-- ===== 顶部导航 ===== -->
+    <div class="header">
+        <div class="logo">🐾 宠物<span>之家</span></div>
+        <div class="header-actions">
+            <button class="btn btn-outline" id="themeToggleBtn">🌙 暗色</button>
+        </div>
     </div>
-    <div class="pet">
-        <img src="https://picsum.photos/200/200?random=2" alt="宠物2">
-        <h3>小狗狗</h3>
+
+    <!-- ===== 宠物展示 ===== -->
+    <div class="card">
+        <h2>🐶 今日萌宠</h2>
+        <p>看看这些可爱的小家伙们</p>
+        <div class="pet-grid">
+            <div class="pet-card"><img src="https://picsum.photos/seed/cat1/400/400" alt="猫"><h3>🐱 小猫咪</h3><p>温顺可爱</p></div>
+            <div class="pet-card"><img src="https://picsum.photos/seed/dog1/400/400" alt="狗"><h3>🐶 小狗狗</h3><p>忠诚活泼</p></div>
+            <div class="pet-card"><img src="https://picsum.photos/seed/rabbit1/400/400" alt="兔"><h3>🐰 小兔子</h3><p>软萌乖巧</p></div>
+            <div class="pet-card"><img src="https://picsum.photos/seed/hamster1/400/400" alt="仓鼠"><h3>🐹 小仓鼠</h3><p>圆滚滚</p></div>
+        </div>
     </div>
-    <div class="pet">
-        <img src="https://picsum.photos/200/200?random=3" alt="宠物3">
-        <h3>小兔子</h3>
+
+    <!-- ===== 留言板 ===== -->
+    <div class="card">
+        <h2>💬 留言板</h2>
+        <p>说点什么吧（刷新页面留言会消失哦～）</p>
+        <div class="row">
+            <input type="text" id="messageInput" placeholder="输入你的留言..." />
+            <button class="btn btn-primary" id="submitMsgBtn">发布留言</button>
+        </div>
+        <div id="msgList" style="margin-top:16px;">
+            <!-- 留言会动态显示在这里 -->
+        </div>
     </div>
-    <p style="margin-top: 40px; color: #999;">✨ 欢迎常来看看</p>
-</body>
-</html>
+
+    <!-- ===== 页脚（带计数器） ===== -->
+    <div class="footer">
+        <p>🐾 宠物之家 · 已有 <span id="visitorCounter">0</span> 位访客</p>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// 1. 访客计数器（使用 localStorage）
+// ============================================================
+function updateCounter() {
+    let count = localStorage.getItem('petHomeVisits');
+    if (count === null) {
+        count = 1;
+    } else {
+        count = parseInt(count) + 1;
+    }
+    localStorage.setItem('petHomeVisits', count);
+    document.getElementById('visitorCounter').textContent = count;
+}
+// 页面加载时更新计数器
+updateCounter();
+
+// ============================================================
+// 2. 留言板（纯前端，存在内存里，刷新即失）
+// ============================================================
+const messageInput = document.getElementById('messageInput');
+const submitMsgBtn = document.getElementById('submitMsgBtn');
+const msgList = document.getElementById('msgList');
+
+// 存储留言的数组（页面刷新就没了）
+let messages = [];
+
+function renderMessages() {
+    if (messages.length === 0) {
+        msgList.innerHTML = '<p style="color:#aaa; font-size:14px;">还没有留言，来做第一个吧 ✨</p>';
+        return;
+    }
+    let html = '';
+    // 从新到旧显示
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        html += `<div style="background:#f9f6f2; padding:10px 16px; border-radius:30px; margin-bottom:8px; font-size:14px;">
+            <strong>${msg.name || '匿名'}</strong>：${msg.text}
+            <span style="color:#bbb; font-size:12px; margin-left:12px;">${msg.time}</span>
+        </div>`;
+    }
+    msgList.innerHTML = html;
+}
+
+function addMessage() {
+    const text = messageInput.value.trim();
+    if (!text) {
+        alert('请输入留言内容！');
+        return;
+    }
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    messages.push({
+        name: '访客',
+        text: text,
+        time: timeStr
+    });
+    messageInput.value = '';
+    renderMessages();
+}
+
+submitMsgBtn.addEventListener('click', addMessage);
+messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addMessage();
+});
+
+// 初始化留言板
+renderMessages();
+
+// ============================================================
+// 3. 暗色模式（切换 body 的 class）
+// ============================================================
+const themeToggleBtn = document.getElementById('themeToggleBtn');
+
+// 检查是否有保存的主题偏好
+const currentTheme = localStorage.getItem('petHomeTheme');
+if (currentTheme === 'dark') {
+    document.body.classList.add('dark-mode');
+    themeToggleBtn.textContent = '☀️ 亮色';
+}
+
+themeToggleBtn.addEventListener('click', () => {
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    themeToggleBtn.textContent = isDark ? '☀️ 亮色' : '🌙 暗色';
+    localStorage.setItem('petHomeTheme', isDark ? 'dark' : 'light');
+});
+</script>
+
+<!-- 暗色模式的额外样式（放在 <style> 里或这里都行） -->
+<style>
+/* 暗色模式变量 */
+body.dark-mode {
+    background: #1a1a2e;
+    color: #e0e0e0;
+}
+body.dark-mode .header,
+body.dark-mode .card,
+body.dark-mode .pet-card {
+    background: #16213e;
+    color: #e0e0e0;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+body.dark-mode .header .logo span { color: #e0e0e0; }
+body.dark-mode .card h2 { color: #f0f0f0; }
+body.dark-mode .card p { color: #aaa; }
+body.dark-mode .row input {
+    background: #0f3460;
+    border-color: #1a4a7a;
+    color: #e0e0e0;
+}
+body.dark-mode .row input::placeholder { color: #888; }
+body.dark-mode .btn-outline {
+    border-color: #d48c6b;
+    color: #d48c6b;
+}
+body.dark-mode .btn-outline:hover {
+    background: #d48c6b;
+    color: #16213e;
+}
+body.dark-mode .footer { color: #666; }
+body.dark-mode #msgList > div {
+    background: #0f3460;
+    color: #e0e0e0;
+}
+body.dark-mode .pet-card h3 { color: #f0f0f0; }
+body.dark-mode .pet-card p { color: #aaa; }
+/* 暗色模式下留言板的“暂无留言”文字 */
+body.dark-mode #msgList p { color: #666; }
+</style>
